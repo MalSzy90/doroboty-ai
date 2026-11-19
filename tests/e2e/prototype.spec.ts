@@ -17,6 +17,7 @@ async function application(page: Page) {
     );
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Wyślij aplikację", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Wysłano!" })).toBeVisible();
 }
 
 for (const [name, filename] of [
@@ -28,7 +29,13 @@ for (const [name, filename] of [
   }) => {
     const external: string[] = [];
     page.on("request", (request) => {
-      if (!request.url().startsWith("http://127.0.0.1:3106")) external.push(request.url());
+      const url = new URL(request.url());
+      // Chrome's bundled PDF viewer uses local chrome:// resources, not the network.
+      if (
+        ["http:", "https:", "ws:", "wss:"].includes(url.protocol) &&
+        url.origin !== "http://127.0.0.1:3106"
+      )
+        external.push(request.url());
     });
     await choose(page, name);
     await page.goto("/#/app/profil");
@@ -183,6 +190,7 @@ test("profile changes do not rewrite a submitted application snapshot", async ({
   await page.goto("/#/app/profil");
   await page.getByLabel("Imię i nazwisko").fill("Nowa Anna");
   await page.getByRole("button", { name: "Zapisz profil", exact: true }).click();
+  await expect(page.getByText("Profil został zapisany.", { exact: true })).toBeVisible();
   await page.goto("/#/app/aplikacje");
   await page.getByRole("link", { name: "AI Product Manager", exact: true }).click();
   await expect(page.locator("main")).toContainText("Anna Kowalska");
@@ -219,12 +227,11 @@ test("invalid import preserves state, valid import replaces state, reset asks fo
   await expect(page.getByText("Zaimportowana Anna", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Resetuj scenariusz", exact: true }).click();
   await page.getByRole("button", { name: "Resetuj", exact: true }).click();
-  expect(
-    await page.evaluate(
-      (key) => JSON.parse(localStorage.getItem(key)!).activePersonId,
-      STORAGE_KEY,
-    ),
-  ).toBe(null);
+  await expect
+    .poll(() =>
+      page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).activePersonId, STORAGE_KEY),
+    )
+    .toBe(null);
 });
 test("unreadable save stays untouched while the user works in memory", async ({ page }) => {
   await page.goto("/");
@@ -250,6 +257,36 @@ test("storage denial keeps the app usable and offers export", async ({ page }) =
   await expect(page.getByRole("status")).toContainText("Wyeksportuj");
   await page.goto("/#/app/profil");
   await expect(page.getByLabel("Imię i nazwisko")).toHaveValue("Anna Kowalska");
+});
+test("failed portal draft and submission never report success", async ({ page }) => {
+  await choose(page, "Anna Kowalska");
+  await page.goto("/#/aplikuj/ai-product-manager");
+  const previousApplications = await page.evaluate(
+    (key) => JSON.parse(localStorage.getItem(key)!).applications.length,
+    STORAGE_KEY,
+  );
+  await page.evaluate(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException("Storage denied", "QuotaExceededError");
+    };
+  });
+  await page
+    .getByLabel("Dlaczego pasujesz do tej roli?")
+    .fill("Fikcyjna odpowiedź opisująca projekt, udział w nim i sposób sprawdzenia wyniku.");
+  await page.getByRole("button", { name: "Zapisz szkic" }).click();
+  await expect(page.getByText("Nie udało się zapisać zmian.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Szkic został zapisany.")).toHaveCount(0);
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Wyślij aplikację", exact: true }).click();
+  await expect(page.getByText("Nie udało się zapisać zmian.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Aplikacja na tę ofertę została już wysłana.")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Wysłano!" })).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      (key) => JSON.parse(localStorage.getItem(key)!).applications.length,
+      STORAGE_KEY,
+    ),
+  ).toBe(previousApplications);
 });
 test("map, hash deep links and unknown records work without external requests", async ({
   page,

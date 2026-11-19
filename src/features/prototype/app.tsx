@@ -17,9 +17,11 @@ import {
 import { EmployerJobs, EmployerJobEditor, CompanyEditor } from "./employer";
 import { SettingsPage, PrivacyPage } from "./settings";
 import { CasePage } from "./case";
+import IntroductionsPrototype from "../introductions/introductions";
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="prototyp/poznajmy-cie" element={<IntroductionsPrototype />} />
       <Route element={<Shell />}>
         <Route index element={<HomePage />} />
         <Route path="oferty" element={<JobsPage />} />

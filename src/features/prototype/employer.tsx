@@ -67,7 +67,7 @@ export function EmployerJobs() {
 }
 export function EmployerJobEditor() {
   const { id } = useParams();
-  const { state, run } = usePrototype();
+  const { state, runPersisted } = usePrototype();
   const person = currentPerson(state)!;
   const navigate = useNavigate();
   const existing = state.jobs.find((x) => x.id === id && x.companyId === person.companyId);
@@ -79,7 +79,7 @@ export function EmployerJobEditor() {
   const [approved, setApproved] = useState(false);
   const [error, setError] = useState("");
   if (id !== "nowa" && !existing) return <NotFound />;
-  function publish(e: FormEvent<HTMLFormElement>) {
+  async function publish(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     if (!approved) {
@@ -133,7 +133,7 @@ export function EmployerJobEditor() {
       );
       return;
     }
-    if (run({ type: "publish", job: parsed.data })) navigate("/app/oferty");
+    if (await runPersisted({ type: "publish", job: parsed.data })) navigate("/app/oferty");
   }
   return (
     <>
@@ -273,15 +273,16 @@ export function EmployerJobEditor() {
   );
 }
 export function CompanyEditor() {
-  const { state, run } = usePrototype();
+  const { state, runPersisted, persisted } = usePrototype();
   const person = currentPerson(state)!;
   const company = state.companies.find((x) => x.id === person.companyId)!;
   const [message, setMessage] = useState("");
-  function save(e: FormEvent<HTMLFormElement>) {
+  async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setMessage("");
     const data = new FormData(e.currentTarget);
     if (
-      run({
+      await runPersisted({
         type: "company",
         name: String(data.get("name")),
         description: String(data.get("description")),
@@ -300,7 +301,7 @@ export function CompanyEditor() {
           <Textarea name="description" maxLength={12000} defaultValue={company.description} />
         </Field>
         <Button type="submit">Zapisz dane firmy</Button>
-        {message && <p role="status">{message}</p>}
+        {message && persisted && <p role="status">{message}</p>}
         <Link className="text-[var(--gui-link)]" to={`/firmy/${company.slug}`}>
           Zobacz profil firmy
         </Link>

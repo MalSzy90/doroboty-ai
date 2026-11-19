@@ -1,5 +1,7 @@
 # DoRoboty.ai — AIPH3 prototype
 
+Przygotowanie fikcyjnej demonstracji online: [instrukcja Netlify Drop](docs/RELEASE_NETLIFY.md). Publikuj tylko wygenerowany folder po lokalnych kontrolach.
+
 A frontend-only job marketplace for participants to extend and test. Built with React, TypeScript and Vite, using Base UI components. The required visual direction for new and changed screens is the accepted Poster People design system.
 
 ## Design system — start here for UI work

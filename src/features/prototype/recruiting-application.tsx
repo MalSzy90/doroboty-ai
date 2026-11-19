@@ -6,7 +6,7 @@ import { nextStages, stageLabels, type Application } from "./model";
 import { usePrototype } from "./store";
 
 export function RecruitingApplication({ application }: { application: Application }) {
-  const { state, run } = usePrototype();
+  const { state, runPersisted } = usePrototype();
   const [note, setNote] = useState("");
   const [announcement, setAnnouncement] = useState("");
   const statusRef = useRef<HTMLSpanElement>(null);
@@ -38,12 +38,19 @@ export function RecruitingApplication({ application }: { application: Applicatio
                   <Button
                     key={stage}
                     variant={stage === "rejected" ? "outline" : "default"}
-                    onClick={() => {
-                      if (run({ type: "stage", applicationId: application.id, stage, note })) {
+                    onClick={async () => {
+                      pendingFocus.current = true;
+                      if (
+                        await runPersisted({
+                          type: "stage",
+                          applicationId: application.id,
+                          stage,
+                          note,
+                        })
+                      ) {
                         setNote("");
                         setAnnouncement(`Zapisano etap: ${stageLabels[stage]}.`);
-                        pendingFocus.current = true;
-                      }
+                      } else pendingFocus.current = false;
                     }}
                   >
                     {stageLabels[stage]}

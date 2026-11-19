@@ -140,14 +140,15 @@ export function WorkspaceHome() {
   );
 }
 export function ProfilePage({ preview = false }: { preview?: boolean }) {
-  const { state, run } = usePrototype();
+  const { state, runPersisted, persisted } = usePrototype();
   const person = currentPerson(state)!;
   const [message, setMessage] = useState("");
-  function save(e: FormEvent<HTMLFormElement>) {
+  async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setMessage("");
     const data = new FormData(e.currentTarget);
     if (
-      run({
+      await runPersisted({
         type: "profile",
         value: {
           name: String(data.get("name")),
@@ -194,7 +195,7 @@ export function ProfilePage({ preview = false }: { preview?: boolean }) {
             <Textarea name="bio" maxLength={12000} defaultValue={person.bio} />
           </Field>
           <Button type="submit">Zapisz profil</Button>
-          {message && <p role="status">{message}</p>}
+          {message && persisted && <p role="status">{message}</p>}
         </form>
       )}
       <section className="prototype-panel mt-6">
@@ -231,7 +232,7 @@ export function SavedPage() {
 }
 export function ApplyPage() {
   const { slug } = useParams();
-  const { state, run } = usePrototype();
+  const { state, runPersisted } = usePrototype();
   const person = currentPerson(state)!;
   const navigate = useNavigate();
   const job = publishedJobs(state).find((x) => x.slug === slug);
@@ -269,7 +270,7 @@ export function ApplyPage() {
         </Link>
       </section>
     );
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     if (submittedOnce.current) return;
     setAttempted(true);
@@ -281,15 +282,15 @@ export function ApplyPage() {
       document.getElementById("application-consent")?.focus();
       return;
     }
-    if (run({ type: "submit", jobId: job!.id, notes, generated, answer, consent })) {
-      submittedOnce.current = true;
+    submittedOnce.current = true;
+    if (await runPersisted({ type: "submit", jobId: job!.id, notes, generated, answer, consent })) {
       setSubmitted(true);
       if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         const rect = sendButton.current?.getBoundingClientRect();
         if (rect)
           setConfettiOrigin({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
       }
-    }
+    } else submittedOnce.current = false;
   }
   return (
     <section className="pp-container application-page">
@@ -386,8 +387,11 @@ export function ApplyPage() {
                 type="button"
                 disabled={submitted}
                 variant="outline"
-                onClick={() => {
-                  if (run({ type: "draft", jobId: job.id, notes, generated, answer }))
+                onClick={async () => {
+                  setMessage("");
+                  if (
+                    await runPersisted({ type: "draft", jobId: job.id, notes, generated, answer })
+                  )
                     setMessage("Szkic został zapisany.");
                 }}
               >

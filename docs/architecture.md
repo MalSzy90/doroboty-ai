@@ -23,3 +23,17 @@ The baseline historical CSV and JSON are separate from interactive state. Future
 ## Checks
 
 npm run check and ./scripts/verify run formatting, design-system reference integrity/example checks, lint, types, unit tests, build and Playwright against the static preview. Playwright checks external requests, complete workflows, error/recovery behavior, keyboard controls and mobile layout. No test starts system services. npm run dev only starts Vite.
+
+## Ochrona zapisu lokalnego po audycie 19.11.2026
+
+Oba scenariusze serializują zapisy przez Web Locks i porównują oryginalną treść pod blokadą. Nowszy zapis z innej karty blokuje starszą kartę, również przy imporcie/resetowaniu. Nie ma scalania ani synchronizacji widoków: po konflikcie należy pobrać kopię szkicu i odświeżyć stronę. Brak Web Locks lub dostępu do zapisu oznacza pracę w pamięci i komunikat o konieczności eksportu. Produkcyjny adres wymaga HTTPS. Makieta Poznajmy Cię ma własną kopię JSON z walidacją, limitem 2 MB i potwierdzeniem zastąpienia.
+
+W portalu działania z komunikatem sukcesu (szkic, wysłanie, publikacja, zmiana etapu, wycofanie, profil i firma) czekają na zakończenie zapisu. Przy odmowie zapisu pozostawiają formularz do poprawy lub ponowienia; nie wyświetlają sukcesu. Lżejsze zmiany, takie jak przełączanie fikcyjnej osoby, nadal aktualizują widok od razu i pokazują błąd zapisu, jeśli wystąpi.
+
+Kontrola lokalna może korzystać z już zainstalowanego Chrome: `PLAYWRIGHT_CHANNEL=chrome ./scripts/verify`. Bez tej zmiennej konfiguracja nadal używa Chromium dostarczanego przez Playwright; polecenia nie instalują przeglądarek. Dwie zależności minimatch narzędzi deweloperskich są ograniczone przez overrides do 11.0.1 (GHSA-g3hv-75wg-m249); aktualizacja zależności nadrzędnych wymaga późniejszej oceny zgodności.
+
+## Przygotowanie wydania demonstracyjnego
+
+Raport techniczny w przeglądarce zapisuje maksymalnie 20 wpisów z czasem, kategorią i wersją aplikacji. Nie przechowuje treści odpowiedzi, notatek, adresów ani wyjątków. Przy błędzie zapisu zostaje w pamięci bieżącej sesji, dlatego należy go pobrać przed zamknięciem strony. Błędy renderowania pokazują ekran odzyskania. To lokalne dane diagnostyczne, bez zewnętrznej telemetrii.
+
+`npm run release:prepare` kopiuje zbudowane pliki do oddzielnego folderu Netlify Drop, sprawdza listę dopuszczonych zasobów i zapisuje manifest SHA-256 poza folderem do wgrania. Instrukcja dla właścicielki pokazu: [RELEASE_NETLIFY.md](RELEASE_NETLIFY.md). Rzeczywiste nagłówki, HTTPS, logi hostingu i działanie cofnięcia wymagają osobnej kontroli po publikacji.

@@ -18,7 +18,8 @@
     "package:participant": "node scripts/package-participant.mjs",
     "verify:packet": "node scripts/verify-participant.mjs",
     "design-system:check": "node docs/design-system/verify-kit.mjs && npm --prefix docs/design-system/agent-kit run check",
-    "design-system:dev": "npm --prefix docs/design-system/agent-kit run dev"
+    "design-system:dev": "npm --prefix docs/design-system/agent-kit run dev",
+    "release:prepare": "node scripts/prepare-netlify-drop.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -55,5 +56,13 @@
   "engines": {
     "node": ">=24 <27"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "@ts-morph/common": {
+      "minimatch": "11.0.1"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.1"
+    }
+  }
 }

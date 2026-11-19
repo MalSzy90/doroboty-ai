@@ -1,36 +1,48 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { initialState, transition, type Action, type State } from "./model";
-import { parseState, readState, saveState, type StoragePort } from "./storage";
-function browserStorage(): StoragePort | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
+import { parseState, readState, serializeState, MAX_IMPORT_BYTES, STORAGE_KEY } from "./storage";
+import { browserStorage, createGuardedWriter } from "@/lib/guarded-storage";
 function useStore() {
   const [loaded] = useState(() => readState(browserStorage()));
+  const [write] = useState(() => createGuardedWriter(STORAGE_KEY, loaded.raw, loaded.blocked));
   const [state, setState] = useState(loaded.state);
   const [issue, setIssue] = useState(loaded.issue);
   const [error, setError] = useState("");
+  const [pendingWrites, setPendingWrites] = useState(0);
   const [blocked, setBlocked] = useState(loaded.blocked);
   const latest = useRef(state);
-  function commit(next: State, replace = false) {
-    latest.current = next;
-    setState(next);
+  const persistedActions = useRef<Promise<void>>(Promise.resolve());
+  async function commit(next: State, replace = false, optimistic = true) {
+    if (!replace && optimistic) {
+      latest.current = next;
+      setState(next);
+    }
     setError("");
-    if (blocked && !replace) return;
+    const raw = serializeState(next);
+    if (new TextEncoder().encode(raw).length > MAX_IMPORT_BYTES) {
+      setIssue("Dane przekraczają 2 MB. Wyeksportuj zmiany.");
+      return false;
+    }
+    setPendingWrites((count) => count + 1);
     try {
-      saveState(browserStorage(), next);
+      await write(raw, replace);
       setIssue("");
-      if (replace) setBlocked(false);
+      if (replace || !optimistic) {
+        latest.current = next;
+        setState(next);
+        if (replace) setBlocked(false);
+      }
+      return true;
     } catch (e) {
-      setIssue((e as Error).message);
+      setIssue(e instanceof Error ? e.message : "Nie udało się zapisać zmian. Wyeksportuj dane.");
+      return false;
+    } finally {
+      setPendingWrites((count) => count - 1);
     }
   }
   function run(action: Action) {
     try {
-      commit(transition(latest.current, action));
+      void commit(transition(latest.current, action));
       return true;
     } catch (e) {
       setError(
@@ -41,11 +53,26 @@ function useStore() {
       return false;
     }
   }
-  function importState(raw: string) {
+  function runPersisted(action: Action): Promise<boolean> {
+    const pending = persistedActions.current.then(async () => {
+      try {
+        return await commit(transition(latest.current, action), false, false);
+      } catch (e) {
+        setError(
+          e instanceof Error && e.name !== "ZodError"
+            ? e.message
+            : "Sprawdź poprawność i długość wprowadzonych danych.",
+        );
+        return false;
+      }
+    });
+    persistedActions.current = pending.then(() => {});
+    return pending;
+  }
+  async function importState(raw: string) {
     try {
       const next = parseState(raw);
-      commit(next, true);
-      return true;
+      return await commit(next, true);
     } catch (e) {
       setError((e as Error).message);
       return false;
@@ -57,10 +84,12 @@ function useStore() {
   return {
     state,
     issue,
+    persisted: pendingWrites === 0 && !issue,
     error,
     blocked,
     original: loaded.original,
     run,
+    runPersisted,
     importState,
     clearError: () => setError(""),
     reset: () => commit(initialState(), true),

@@ -4,6 +4,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { usePrototype } from "./store";
 import { serializeState, MAX_IMPORT_BYTES } from "./storage";
 import { PageTitle } from "./shell";
+import { downloadDiagnostics, recordDiagnostic } from "@/lib/diagnostics";
 
 export function downloadText(name: string, text: string, type = "application/json") {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -34,14 +35,15 @@ export function SettingsPage() {
       setRaw(await file.text());
       setPending("import");
     } catch {
+      recordDiagnostic("invalid-import");
       setError("Nie udało się odczytać pliku.");
     }
   }
-  function confirm() {
+  async function confirm() {
+    setMessage("");
     if (pending === "reset") {
-      reset();
-      setMessage("Przywrócono scenariusz początkowy.");
-    } else if (importState(raw)) {
+      if (await reset()) setMessage("Przywrócono scenariusz początkowy.");
+    } else if (await importState(raw)) {
       setMessage("Dane zostały zaimportowane.");
     }
     setPending(null);
@@ -61,6 +63,9 @@ export function SettingsPage() {
             onClick={() => downloadText("doroboty-scenariusz.json", serializeState(state))}
           >
             Eksportuj dane
+          </Button>
+          <Button variant="outline" onClick={downloadDiagnostics}>
+            Pobierz raport techniczny
           </Button>
           <Button variant="outline" render={<label />}>
             Importuj dane
@@ -83,6 +88,7 @@ export function SettingsPage() {
             </Button>
           )}
         </div>
+        <p>Raport zawiera tylko czas, rodzaj błędu i wersję makiety, bez wpisanych odpowiedzi.</p>
         <Button variant="destructive" onClick={() => setPending("reset")}>
           Resetuj scenariusz
         </Button>
