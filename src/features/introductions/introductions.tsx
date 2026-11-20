@@ -43,6 +43,7 @@ import {
 } from "./scenario";
 import { createGuardedWriter } from "@/lib/guarded-storage";
 import { downloadDiagnostics, recordDiagnostic } from "@/lib/diagnostics";
+import { captureProductEvent } from "@/lib/analytics";
 import "./introductions.css";
 
 type View = "kandydat" | "pracodawca" | "pytania";
@@ -633,6 +634,7 @@ function IntroductionsScreens() {
                                 true,
                               );
                               if (!saved) return;
+                              captureProductEvent({ name: "poznajmy_cie.answers_submitted" });
                               setStep("sent");
                               setStatus("");
                             }}
@@ -894,7 +896,9 @@ function EmployerResponses({
                 secondary
                 disabled={!note.trim()}
                 onClick={async () => {
-                  setSaved(await save({ ...data, followup: note }));
+                  const didSave = await save({ ...data, followup: note });
+                  setSaved(didSave);
+                  if (didSave) captureProductEvent({ name: "poznajmy_cie.followup_saved" });
                 }}
               >
                 {saved ? (

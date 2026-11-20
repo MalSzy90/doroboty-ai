@@ -1,4 +1,5 @@
-import { HashRouter, Routes, Route, Navigate } from "react-router";
+import { useEffect } from "react";
+import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router";
 import { PrototypeProvider } from "./store";
 import { Shell, NotFound } from "./shell";
 import HomePage from "./home";
@@ -18,6 +19,49 @@ import { EmployerJobs, EmployerJobEditor, CompanyEditor } from "./employer";
 import { SettingsPage, PrivacyPage } from "./settings";
 import { CasePage } from "./case";
 import IntroductionsPrototype from "../introductions/introductions";
+import { captureProductEvent } from "@/lib/analytics";
+
+function portalScreen(pathname: string) {
+  if (pathname === "/") return "home";
+  if (pathname === "/oferty") return "job_search";
+  if (pathname.startsWith("/oferty/") || pathname.startsWith("/firmy/")) return "job_detail";
+  if (pathname.startsWith("/aplikuj/")) return "application_form";
+  if (pathname.startsWith("/app/kandydaci")) return "employer_candidates";
+  if (pathname.startsWith("/app/aplikacje")) return "applications";
+  if (pathname.startsWith("/app/oferty")) return "employer_jobs";
+  if (pathname.startsWith("/app")) return "workspace";
+  if (pathname === "/metodologia") return "methodology";
+  if (pathname === "/polityka-prywatnosci") return "privacy";
+  return "other";
+}
+
+function AnalyticsRouteTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.pathname === "/prototyp/poznajmy-cie") {
+      const params = new URLSearchParams(location.search);
+      if (params.get("podglad") === "telefon") return;
+      const requestedView = params.get("widok");
+      const view =
+        requestedView === "pracodawca"
+          ? "employer"
+          : requestedView === "pytania"
+            ? "questions"
+            : "candidate";
+      captureProductEvent({ name: "poznajmy_cie.screen_viewed", properties: { view } });
+      return;
+    }
+
+    captureProductEvent({
+      name: "portal.screen_viewed",
+      properties: { screen: portalScreen(location.pathname) },
+    });
+  }, [location.pathname, location.search]);
+
+  return null;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -153,6 +197,7 @@ export function App() {
   return (
     <PrototypeProvider>
       <HashRouter>
+        <AnalyticsRouteTracker />
         <AppRoutes />
       </HashRouter>
     </PrototypeProvider>

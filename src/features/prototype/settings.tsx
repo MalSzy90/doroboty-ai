@@ -5,6 +5,13 @@ import { usePrototype } from "./store";
 import { serializeState, MAX_IMPORT_BYTES } from "./storage";
 import { PageTitle } from "./shell";
 import { downloadDiagnostics, recordDiagnostic } from "@/lib/diagnostics";
+import {
+  acceptAnalyticsConsent,
+  declineAnalyticsConsent,
+  getAnalyticsConsent,
+  isAnalyticsConfigured,
+  type AnalyticsConsent,
+} from "@/lib/analytics";
 
 export function downloadText(name: string, text: string, type = "application/json") {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -121,6 +128,22 @@ export function SettingsPage() {
   );
 }
 export function PrivacyPage() {
+  const [consent, setConsent] = useState<AnalyticsConsent>(getAnalyticsConsent);
+  const [message, setMessage] = useState("");
+  const analyticsConfigured = isAnalyticsConfigured();
+
+  function chooseAnalyticsConsent(next: "accepted" | "declined") {
+    const saved = next === "accepted" ? acceptAnalyticsConsent() : declineAnalyticsConsent();
+    setConsent(next);
+    setMessage(
+      saved
+        ? next === "accepted"
+          ? "Zapisano wybór. Wybrane zdarzenia będą wysyłane do PostHog."
+          : "Zapisano wybór. Zdarzenia analityczne są wyłączone."
+        : "Wybór działa do końca tej karty, ale nie udało się zapisać go w przeglądarce.",
+    );
+  }
+
   return (
     <section className="prototype-section max-w-4xl">
       <h1>Prywatność prototypu</h1>
@@ -131,9 +154,53 @@ export function PrivacyPage() {
         </p>
         <p>
           Profile, aplikacje i ustawienia pozostają w pamięci tej przeglądarki. Aplikacja nie wysyła
-          ich do bazy, dostawcy AI ani systemu analitycznego. Plik eksportu zawiera cały lokalny
-          scenariusz, w tym notatki.
+          ich do bazy ani dostawcy AI. Plik eksportu zawiera cały lokalny scenariusz, w tym notatki.
         </p>
+        <section aria-labelledby="analytics-privacy-heading" className="space-y-4">
+          <h2 id="analytics-privacy-heading">Analityka użycia</h2>
+          {analyticsConfigured ? (
+            <>
+              <p>
+                PostHog otrzyma wyłącznie wybrane nazwy ekranów oraz informację o wysłaniu aplikacji
+                kandydata, wysłaniu odpowiedzi w makiecie lub zapisaniu pytania do rozmowy. Nie
+                wysyłamy treści odpowiedzi, CV, nazwisk, identyfikatorów zgłoszeń ani adresu strony.
+                PostHog może otrzymać krótkotrwały identyfikator, informacje o przeglądarce i sesji
+                oraz dane sieciowe żądania, takie jak adres IP. Automatyczne śledzenie kliknięć,
+                odsłon i nagrania sesji są wyłączone.
+              </p>
+              <div aria-label="Zgoda na analitykę" className="flex flex-wrap gap-3" role="group">
+                <Button
+                  onClick={() => chooseAnalyticsConsent("accepted")}
+                  type="button"
+                  variant={consent === "accepted" ? "secondary" : "default"}
+                >
+                  Zezwól na analitykę
+                </Button>
+                <Button
+                  onClick={() => chooseAnalyticsConsent("declined")}
+                  type="button"
+                  variant="outline"
+                >
+                  Odmów lub cofnij zgodę
+                </Button>
+              </div>
+              <p aria-live="polite" role="status">
+                {message ||
+                  (consent === "accepted"
+                    ? "Zgoda na wybrane zdarzenia jest włączona."
+                    : consent === "declined"
+                      ? "Zdarzenia analityczne są wyłączone."
+                      : "Zdarzenia są wyłączone do czasu Twojej decyzji.")}
+              </p>
+            </>
+          ) : (
+            <p>
+              Analityka PostHog jest wyłączona w tej wersji. Zdarzenia nie są wysyłane. Jeśli
+              integracja zostanie skonfigurowana, możesz zdecydować tutaj, czy zezwolić na wybrane
+              zdarzenia.
+            </p>
+          )}
+        </section>
         <p>
           Możesz usunąć zmiany przyciskiem „Resetuj scenariusz” w ustawieniach lub wyczyścić dane
           witryny w przeglądarce. Hosting może prowadzić własne logi dostępu.

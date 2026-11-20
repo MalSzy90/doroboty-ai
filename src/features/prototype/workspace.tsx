@@ -16,6 +16,7 @@ import { CvAttachment } from "./cv-attachment";
 import { MatchScore } from "./match-score";
 import { RecruitingApplication } from "./recruiting-application";
 import { CandidateApplication } from "./candidate-application";
+import { captureProductEvent } from "@/lib/analytics";
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -284,6 +285,7 @@ export function ApplyPage() {
     }
     submittedOnce.current = true;
     if (await runPersisted({ type: "submit", jobId: job!.id, notes, generated, answer, consent })) {
+      captureProductEvent({ name: "portal.application_submitted" });
       setSubmitted(true);
       if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         const rect = sendButton.current?.getBoundingClientRect();

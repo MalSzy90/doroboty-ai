@@ -23,6 +23,7 @@ const navigation = [
   { to: "/oferty", label: "Oferty" },
   { to: "/metodologia", label: "Metodologia" },
   { to: "/auth/sign-in?audience=employer&next=/app/oferty", label: "Dla firm" },
+  { to: "/prototyp/poznajmy-cie", label: "Prototyp Poznajmy Cię" },
 ];
 
 export function Notice({ children }: { children: ReactNode }) {
@@ -181,6 +182,13 @@ export function Shell() {
               <Link className="nav-link" to="/oferty">
                 Wszystkie oferty
               </Link>
+              <Link
+                className="nav-link"
+                to="/prototyp/poznajmy-cie"
+                onClick={() => setMenuAt(null)}
+              >
+                Prototyp Poznajmy Cię
+              </Link>
               <Link className="nav-link" to="/auth/sign-in">
                 Zmień osobę
               </Link>
@@ -218,7 +226,10 @@ export function Shell() {
                 {navigation.map((item) => (
                   <Link
                     key={item.to}
-                    className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:inline"
+                    className={cn(
+                      "hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+                      item.to === "/prototyp/poznajmy-cie" ? "xl:inline" : "md:inline",
+                    )}
                     to={item.to}
                   >
                     {item.label}
@@ -278,6 +289,11 @@ export function Shell() {
                 )}
               </nav>
             </div>
+            <nav aria-label="Prototyp" className="border-t px-5 py-3 text-sm font-medium xl:hidden">
+              <Link to="/prototyp/poznajmy-cie">
+                Prototyp Poznajmy Cię <span aria-hidden="true">→</span>
+              </Link>
+            </nav>
           </header>
           <main id="main" ref={main} tabIndex={-1} className="outline-none">
             {content}

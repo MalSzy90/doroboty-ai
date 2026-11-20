@@ -571,6 +571,19 @@ test("restored company and public navigation keep their structure across screen 
   await page.screenshot({ path: "artifacts/original-list-layout-desktop.png", fullPage: true });
 });
 
+test("prototype is reachable from public navigation on desktop and mobile", async ({ page }) => {
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/#/");
+    const link = page
+      .getByRole("link", { name: "Prototyp Poznajmy Cię" })
+      .filter({ visible: true });
+    await expect(link).toBeVisible();
+    await link.click();
+    await expect(page).toHaveURL(/#\/prototyp\/poznajmy-cie/);
+  }
+});
+
 test("mobile search stays visible and filter dialog restores focus", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/#/oferty");
